@@ -18,10 +18,16 @@ export const ReduceToy = <T, A>({
   array,
   callbackFunc,
   initialValue,
-  sourceCode,
 }: IReduceToyProps<T, A>) => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [currentAccumulator, setAccumulator] = useState<A>(initialValue);
+  const [showResult, setShowResult] = useState<boolean>(false);
+
+  const ARGUMENTS_REGEX = new RegExp(
+    /\((?<acc>\w+)(?<elem>,\s+\w+)(?<index>,\s+\w+)?(?<arr>,\s+\w+)?\)=>/g
+  );
+  const rawSrc = `${callbackFunc}`;
+  const argsMatch = ARGUMENTS_REGEX.exec(rawSrc) as RegExpExecArray;
 
   const currentElement = array[currentIndex];
   const nextAcc = callbackFunc(
@@ -38,20 +44,19 @@ export const ReduceToy = <T, A>({
 
   const isOverflow = currentIndex >= array.length - 1;
 
-  const ArgsList: IHightLightKVProps[] = [
-    {
-      name: 'acc',
-      value: JSON.stringify(currentAccumulator),
-    },
-    {
-      name: 'e',
-      value: `${currentElement}`,
-    },
-    {
-      name: 'i',
-      value: `${currentIndex}`,
-    },
-  ];
+  const argValueMap = {
+    acc: JSON.stringify(currentAccumulator),
+    elem: `${currentElement}`,
+    index: `${currentIndex}`,
+    arr: JSON.stringify(array),
+  };
+
+  const ArgsList: IHightLightKVProps[] = Object.entries(argValueMap)
+    .map(([key, value]) => ({
+      name: argsMatch.groups![key]?.replace(', ', ''),
+      value: value,
+    }))
+    .filter(({ name }) => name !== undefined);
 
   return (
     <div className="flex flex-col">
@@ -61,11 +66,12 @@ export const ReduceToy = <T, A>({
         ))}
       </div>
       <SyntaxHighlighter language="javascript" style={docco}>
-        {`${callbackFunc}`.replace(/param/g, 'acc')}
+        {rawSrc}
       </SyntaxHighlighter>
-      <h1 className="text-xl py-4 font-code">{`=> ${JSON.stringify(
-        nextAcc
-      )}`}</h1>
+      <h1
+        className="text-xl py-4 font-code"
+        onClick={() => setShowResult(!showResult)}
+      >{`=> ${showResult ? JSON.stringify(nextAcc) : '?'}`}</h1>
       <div className="w-full flex justify-evenly mt-4">
         {array.map((e, i) => (
           <h1
